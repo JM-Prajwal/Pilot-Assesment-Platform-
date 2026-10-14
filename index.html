@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AeroTest - Pilot Aptitude Simulator</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        navy: {
+                            800: '#1e293b',
+                            900: '#0f172a',
+                        },
+                        brand: {
+                            blue: '#0284c7', // Professional airline blue
+                            light: '#e0f2fe'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        /* Custom scrollbar for sidebar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 h-screen overflow-hidden flex text-slate-800">
+
+    <!-- Sidebar -->
+    <aside class="w-72 bg-navy-900 text-white flex flex-col h-full shadow-xl z-10 flex-shrink-0">
+        <div class="p-6 border-b border-slate-700 flex items-center cursor-pointer" onclick="goHome()">
+            <i class="fa-solid fa-plane-departure text-brand-blue text-2xl mr-3"></i>
+            <div>
+                <h1 class="text-xl font-bold tracking-wide">AeroTest Pro</h1>
+                <p class="text-xs text-slate-400">Assessment Simulator</p>
+            </div>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto py-4" id="sidebar-nav">
+            <!-- Navigation items injected via JS -->
+        </div>
+
+        <div class="p-4 border-t border-slate-700 text-xs text-slate-400 text-center">
+            v1.0.0 Alpha Layout
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative">
+        
+        <!-- Header -->
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 flex-shrink-0 shadow-sm">
+            <h2 id="header-title" class="text-lg font-semibold text-slate-700">Dashboard</h2>
+            <div class="flex items-center space-x-4 text-slate-500">
+                <span class="text-sm"><i class="fa-solid fa-user-circle mr-2"></i>Candidate A</span>
+                <button class="hover:text-brand-blue transition"><i class="fa-solid fa-gear"></i></button>
+            </div>
+        </header>
+
+        <!-- Dynamic Content Container -->
+        <div id="main-content" class="flex-1 overflow-y-auto p-8 bg-slate-50">
+            <!-- Content injected via JS -->
+        </div>
+    </main>
+
+    <script>
+        // --- DATA ---
+        const modules = [
+            { id: 'spatial', title: 'Spatial Orientation', icon: 'fa-compass', desc: 'Determine aircraft position relative to NDB/VOR beacons.' },
+            { id: 'grid', title: 'Grid Challenge', icon: 'fa-braille', desc: 'Memorize and recreate dot patterns after being distracted.' },
+            { id: 'multitasking', title: 'Multi-Tasking', icon: 'fa-arrows-down-to-people', desc: 'Control an object while answering math and audio prompts.' },
+            { id: 'concentration', title: 'Concentration', icon: 'fa-eye', desc: 'Quickly identify specific shapes among heavy distractors.' },
+            { id: 'reaction', title: 'Reaction Time', icon: 'fa-bolt', desc: 'Respond instantly to matching color and shape combinations.' },
+            { id: 'inductive', title: 'Inductive Logic', icon: 'fa-project-diagram', desc: 'Discover hidden rules sorting abstract shapes.' },
+            { id: 'deductive', title: 'Deductive Logic', icon: 'fa-table-cells', desc: 'Fill missing shapes in a grid without repeating (Sudoku style).' },
+            { id: 'planning', title: 'Complex Planning', icon: 'fa-route', desc: 'Navigate an object through a maze with minimum moves.' },
+            { id: 'math', title: 'Mental Arithmetic', icon: 'fa-calculator', desc: 'Calculate speed, distance, time, and fuel under pressure.' },
+            { id: 'mechanical', title: 'Mechanical Comprehension', icon: 'fa-gears', desc: 'Solve physics problems involving gears, pulleys, and circuits.' },
+            { id: 'audio', title: 'ATC Audio Recall', icon: 'fa-headset', desc: 'Listen to ATC instructions and recall specific data points later.' },
+            { id: 'handeye', title: 'Hand-Eye Coordination', icon: 'fa-gamepad', desc: 'Keep a crosshair centered in a moving target using controls.' },
+            { id: 'memory', title: 'Visual Memory', icon: 'fa-clone', desc: 'Memorize flight parameters and instrument readings.' },
+            { id: 'info', title: 'Information Processing', icon: 'fa-microchip', desc: 'Rapidly sort gauges and readouts based on changing rules.' },
+            { id: 'personality', title: 'Personality Questionnaire', icon: 'fa-clipboard-user', desc: 'Standardized psychological assessment for flight crew.' }
+        ];
+
+        // --- STATE ---
+        let activeModuleId = null;
+        let activePhase = 'briefing'; // 'briefing', 'demo', 'test'
+
+        // --- DOM ELEMENTS ---
+        const sidebarNav = document.getElementById('sidebar-nav');
+        const mainContent = document.getElementById('main-content');
+        const headerTitle = document.getElementById('header-title');
+
+        // --- INITIALIZATION ---
+        function init() {
+            renderSidebar();
+            goHome();
+        }
+
+        // --- RENDERING FUNCTIONS ---
+        function renderSidebar() {
+            sidebarNav.innerHTML = '';
+            
+            const ul = document.createElement('ul');
+            ul.className = 'space-y-1 px-3';
+
+            modules.forEach(mod => {
+                const li = document.createElement('li');
+                const isActive = mod.id === activeModuleId;
+                
+                li.innerHTML = `
+                    <button onclick="selectModule('${mod.id}')" 
+                        class="w-full flex items-center px-3 py-3 rounded-lg text-sm transition-colors duration-200 text-left
+                        ${isActive ? 'bg-brand-blue text-white font-medium shadow-md' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}">
+                        <div class="w-6 text-center mr-3 ${isActive ? 'text-white' : 'text-slate-400'}">
+                            <i class="fa-solid ${mod.icon}"></i>
+                        </div>
+                        <span class="truncate">${mod.title}</span>
+                    </button>
+                `;
+                ul.appendChild(li);
+            });
+
+            sidebarNav.appendChild(ul);
+        }
+
+        function goHome() {
+            activeModuleId = null;
+            activePhase = 'briefing';
+            headerTitle.innerText = "Dashboard";
+            renderSidebar();
+            
+            mainContent.innerHTML = `
+                <div class="max-w-4xl mx-auto fade-in">
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="bg-navy-900 text-white p-8 text-center">
+                            <i class="fa-solid fa-graduation-cap text-5xl mb-4 text-brand-blue"></i>
+                            <h1 class="text-3xl font-bold mb-2">Welcome to AeroTest Pro</h1>
+                            <p class="text-slate-300 max-w-2xl mx-auto">
+                                This platform simulates the standardized psychometric and aptitude tests used by major airlines (Aon/cut-e, ADAPT).
+                            </p>
+                        </div>
+                        
+                        <div class="p-8">
+                            <h2 class="text-xl font-bold text-slate-800 mb-6 text-center border-b pb-4">Standard 3-Phase Testing Protocol</h2>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+                                
+                                <!-- Connecting Line (Desktop) -->
+                                <div class="hidden md:block absolute top-12 left-1/6 right-1/6 h-0.5 bg-slate-200 z-0 border-t-2 border-dashed"></div>
+
+                                <!-- Phase 1 -->
+                                <div class="relative z-10 flex flex-col items-center text-center">
+                                    <div class="w-16 h-16 bg-white border-4 border-slate-200 text-slate-400 rounded-full flex items-center justify-center text-xl font-bold mb-4 shadow-sm">
+                                        1
+                                    </div>
+                                    <h3 class="font-bold text-slate-800 mb-2">Briefing Room</h3>
+                                    <p class="text-sm text-slate-500">Read the rules, understand the controls, and learn how the module is scored. No timer.</p>
+                                </div>
+
+                                <!-- Phase 2 -->
+                                <div class="relative z-10 flex flex-col items-center text-center">
+                                    <div class="w-16 h-16 bg-brand-light border-4 border-brand-blue text-brand-blue rounded-full flex items-center justify-center text-xl font-bold mb-4 shadow-sm">
+                                        2
+                                    </div>
+                                    <h3 class="font-bold text-slate-800 mb-2">Demo Try</h3>
+                                    <p class="text-sm text-slate-500">Practice the task without pressure. Receive immediate Correct/Incorrect feedback to solidify your understanding.</p>
+                                </div>
+
+                                <!-- Phase 3 -->
+                                <div class="relative z-10 flex flex-col items-center text-center">
+                                    <div class="w-16 h-16 bg-red-50 border-4 border-red-500 text-red-500 rounded-full flex items-center justify-center text-xl font-bold mb-4 shadow-sm">
+                                        3
+                                    </div>
+                                    <h3 class="font-bold text-slate-800 mb-2">Live Evaluation</h3>
+                                    <p class="text-sm text-slate-500">Timed execution. Distractors active. No immediate feedback. Calculates your final Stanine score.</p>
+                                </div>
+                            </div>
+
+                            <div class="mt-12 text-center">
+                                <p class="text-slate-600 mb-4">Select a module from the sidebar to begin your training.</p>
+                                <button onclick="selectModule('spatial')" class="bg-brand-blue hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-lg transition-colors shadow-md">
+                                    Start First Module <i class="fa-solid fa-arrow-right ml-2"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function selectModule(id) {
+            activeModuleId = id;
+            activePhase = 'briefing';
+            
+            const module = modules.find(m => m.id === id);
+            headerTitle.innerHTML = `<i class="fa-solid ${module.icon} mr-2 text-slate-400"></i> ${module.title}`;
+            
+            renderSidebar();
+            renderModuleView(module);
+        }
+
+        function setPhase(phase) {
+            activePhase = phase;
+            const module = modules.find(m => m.id === activeModuleId);
+            renderModuleView(module);
+        }
+
+        function renderModuleView(module) {
+            
+            // Phase Content Logic
+            let phaseContent = '';
+            
+            if (activePhase === 'briefing') {
+                phaseContent = `
+                    <div class="fade-in max-w-2xl mx-auto py-8">
+                        <i class="fa-solid fa-book-open text-4xl text-slate-300 mb-4 block text-center"></i>
+                        <h3 class="text-2xl font-bold text-center mb-6">Briefing: ${module.title}</h3>
+                        <div class="bg-slate-100 p-6 rounded-lg text-slate-700 space-y-4 shadow-inner border border-slate-200">
+                            <p><strong>Objective:</strong> ${module.desc}</p>
+                            <p><strong>Instructions:</strong> In this test, you will be presented with a specific task simulating cognitive load. Read the prompts carefully. Accuracy and speed are both graded.</p>
+                            <p><strong>Controls:</strong> Use your mouse to select answers, or keyboard numbers [1-9] for rapid input.</p>
+                            <div class="bg-blue-50 border-l-4 border-brand-blue p-4 mt-4">
+                                <p class="text-sm text-blue-800">You must complete a Demo Try before you can access the Live Evaluation.</p>
+                            </div>
+                        </div>
+                        <div class="mt-8 text-center">
+                            <button onclick="setPhase('demo')" class="bg-brand-blue hover:bg-blue-700 text-white py-3 px-8 rounded-lg font-medium shadow-md transition">
+                                I understand, start Demo Try
+                            </button>
+                        </div>
+                    </div>
+                `;
+            } else if (activePhase === 'demo') {
+                phaseContent = `
+                    <div class="fade-in h-full flex flex-col items-center justify-center py-12">
+                        <div class="bg-brand-light text-brand-blue px-4 py-1 rounded-full text-sm font-bold mb-6 border border-blue-200">
+                            DEMO MODE - UNTIMED
+                        </div>
+                        
+                        <!-- MOCK GAME CANVAS -->
+                        <div class="w-full max-w-3xl h-80 bg-slate-900 rounded-xl shadow-2xl flex flex-col items-center justify-center border-4 border-slate-700 relative overflow-hidden">
+                            <i class="fa-solid ${module.icon} text-6xl text-slate-600 mb-4"></i>
+                            <p class="text-slate-400 font-mono text-center px-8">
+                                [ Interactive Canvas for ${module.title} will render here ]<br><br>
+                                <span class="text-sm">Clicking answers will show green (correct) or red (incorrect).</span>
+                            </p>
+                        </div>
+
+                        <div class="mt-8 space-x-4">
+                            <button onclick="setPhase('briefing')" class="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 py-2 px-6 rounded-lg font-medium transition">
+                                Back to Briefing
+                            </button>
+                            <button onclick="setPhase('test')" class="bg-slate-800 hover:bg-black text-white py-2 px-6 rounded-lg font-medium shadow-md transition">
+                                End Demo, Start Live Test
+                            </button>
+                        </div>
+                    </div>
+                `;
+            } else if (activePhase === 'test') {
+                phaseContent = `
+                    <div class="fade-in h-full flex flex-col items-center justify-center py-12">
+                        <div class="flex items-center space-x-4 mb-6 w-full max-w-3xl justify-between px-4">
+                            <div class="bg-red-100 text-red-600 px-4 py-1 rounded-full text-sm font-bold border border-red-200 flex items-center">
+                                <span class="w-2 h-2 rounded-full bg-red-600 animate-pulse mr-2"></span> LIVE EVALUATION
+                            </div>
+                            <div class="text-slate-800 font-mono text-xl font-bold bg-white px-4 py-1 rounded shadow-sm border border-slate-200">
+                                05:00
+                            </div>
+                        </div>
+                        
+                        <!-- MOCK GAME CANVAS -->
+                        <div class="w-full max-w-3xl h-80 bg-slate-900 rounded-xl shadow-2xl flex flex-col items-center justify-center border-4 border-slate-800 relative">
+                             <i class="fa-solid ${module.icon} text-6xl text-slate-600 mb-4"></i>
+                             <p class="text-slate-400 font-mono text-center px-8">
+                                [ Live Game Logic for ${module.title} ]<br><br>
+                                <span class="text-sm">No instant feedback. Timer is running. Distractors active.</span>
+                            </p>
+                        </div>
+
+                        <div class="mt-8">
+                            <button onclick="alert('Module finished! Calculating Stanine score...')" class="bg-red-600 hover:bg-red-700 text-white py-2 px-8 rounded-lg font-medium shadow-md transition">
+                                Abort / Finish Test
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Outer Template (Tabs + Content)
+            mainContent.innerHTML = `
+                <div class="h-full flex flex-col bg-white rounded-xl shadow-sm border border-slate-200">
+                    
+                    <!-- Top Phase Stepper -->
+                    <div class="flex border-b border-slate-200 bg-slate-50 rounded-t-xl overflow-hidden">
+                        <button onclick="setPhase('briefing')" class="flex-1 py-4 text-center font-medium text-sm transition-colors border-r border-slate-200 relative
+                            ${activePhase === 'briefing' ? 'bg-white text-brand-blue border-b-2 border-b-brand-blue' : 'text-slate-500 hover:bg-slate-100'}">
+                            <i class="fa-solid fa-list-check mr-2"></i> 1. Briefing Room
+                        </button>
+                        <button onclick="setPhase('demo')" class="flex-1 py-4 text-center font-medium text-sm transition-colors border-r border-slate-200 relative
+                            ${activePhase === 'demo' ? 'bg-white text-brand-blue border-b-2 border-b-brand-blue' : 'text-slate-500 hover:bg-slate-100'}">
+                            <i class="fa-solid fa-vial mr-2"></i> 2. Demo Try
+                        </button>
+                        <button onclick="setPhase('test')" class="flex-1 py-4 text-center font-medium text-sm transition-colors relative
+                            ${activePhase === 'test' ? 'bg-white text-red-600 border-b-2 border-b-red-600' : 'text-slate-500 hover:bg-slate-100'}">
+                            <i class="fa-solid fa-stopwatch mr-2"></i> 3. Live Evaluation
+                        </button>
+                    </div>
+
+                    <!-- Dynamic Phase Body -->
+                    <div class="flex-1 p-6 overflow-y-auto">
+                        ${phaseContent}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Run Initialization
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
